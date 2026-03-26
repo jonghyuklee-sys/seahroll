@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>세아씨엠 양산롤 디자인 조회</title>
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Auth Overlay (Admin Mode) -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-box">
+            <div class="auth-logo">
+                <img src="seah-logo.jpg" alt="SeAH Logo">
+            </div>
+            <div class="auth-header">
+                <h2>임직원 인증</h2>
+                <p>사이트 접속을 위해 비밀번호를 입력하세요.</p>
+            </div>
+            <div class="auth-input-group">
+                <input type="password" id="authPassword" placeholder="비밀번호 입력">
+                <button id="authBtn">접속하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Section -->
+    <header class="main-header">
+        <div class="container header-content">
+            <div class="logo">
+                <img src="seah-logo.jpg" alt="SEAH Logo">
+                <div class="logo-text">
+                    <h1>양산롤 디자인 조회</h1>
+                    <span>SEAH CM ROLL SEARCH SYSTEM</span>
+                </div>
+            </div>
+            <div class="right-actions">
+                <button id="themeToggle" class="btn-icon" title="다크모드">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="addDesignBtn" class="btn-primary">
+                    <i class="fas fa-plus"></i> 디자인 추가
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="controls-container">
+                <div class="controls-top">
+                    <h2>전체 디자인 목록</h2>
+                    <div class="stats">총 <span id="totalCount">0</span>개 항목</div>
+                </div>
+
+                <div class="control-panel">
+                    <!-- Filter Row -->
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <button id="filterAll" class="filter-btn active">전체</button>
+                            <button id="filterFav" class="filter-btn"><i class="fas fa-star"></i> 즐겨찾기</button>
+                            <button id="filter2CCL" class="filter-btn">2CCL</button>
+                            <button id="filter3CCL" class="filter-btn">3CCL</button>
+                        </div>
+
+                        <div class="search-group">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchInput" placeholder="컬러코드 또는 설명 검색...">
+                        </div>
+
+                        <select id="sortSelect" class="sort-select">
+                            <option value="code_asc">코드 순 ↓</option>
+                            <option value="code_desc">코드 순 ↑</option>
+                            <option value="newest">최신 등록순</option>
+                        </select>
+                    </div>
+
+                    <!-- Pagination Row -->
+                    <div class="pagination-row">
+                        <div id="pagination" class="pagination top-pagination">
+                            <!-- Pagination content via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="rollGrid" class="roll-grid">
+                <div class="loading">데이터를 불러오는 중...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal for Detail -->
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="magnifierArea" class="image-viewer">
+                <img id="modalImage" src="" alt="Design Image">
+                <div id="magnifierLens" class="magnifier-lens"></div>
+            </div>
+            <div class="info-panel">
+                <div class="info-header">
+                    <h2 id="modalTitle"></h2>
+                    <p id="modalDesc"></p>
+                </div>
+                <div class="info-section">
+                    <h3>2CCL 잉크롤코드</h3>
+                    <div class="info-grid">
+                        <div class="info-item"><span>#1</span>
+                            <div id="v2ccl1"></div>
+                        </div>
+                        <div class="info-item"><span>#2</span>
+                            <div id="v2ccl2"></div>
+                        </div>
+                        <div class="info-item"><span>#3</span>
+                            <div id="v2ccl3"></div>
+                        </div>
+                        <div class="info-item"><span>#4</span>
+                            <div id="v2ccl4"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-section">
+                    <h3>3CCL 잉크롤코드</h3>
+                    <div class="info-grid">
+                        <div class="info-item"><span>#1</span>
+                            <div id="v3ccl1"></div>
+                        </div>
+                        <div class="info-item"><span>#2</span>
+                            <div id="v3ccl2"></div>
+                        </div>
+                        <div class="info-item"><span>#3</span>
+                            <div id="v3ccl3"></div>
+                        </div>
+                        <div class="info-item"><span>#4</span>
+                            <div id="v3ccl4"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-section">
+                    <h3>비고</h3>
+                    <div id="vRemarks" class="remarks-box"></div>
+                </div>
+                <div class="action-buttons">
+                    <button class="edit-btn" id="editBtn"><i class="fas fa-edit"></i> 수정</button>
+                    <button class="delete-btn" id="deleteBtn"><i class="fas fa-trash"></i> 삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    <div id="addDesignModal" class="modal">
+        <div class="modal-content add-modal-content">
+            <span class="close-modal close-add-modal">&times;</span>
+            <h2 id="addModalTitle">디자인 정보 관리</h2>
+            <form id="addDesignForm" class="add-form-container">
+                <div class="form-section">
+                    <h3>기본 정보</h3>
+                    <div class="form-grid">
+                        <div class="form-group"><label>컬러코드</label><input type="text" id="add_colorCode" required></div>
+                        <div class="form-group"><label>설명</label><input type="text" id="add_description"></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>2CCL 잉크롤코드</h3>
+                    <div class="form-grid">
+                        <div class="form-group"><label>#1</label><input type="text" id="add_2ccl1"></div>
+                        <div class="form-group"><label>#2</label><input type="text" id="add_2ccl2"></div>
+                        <div class="form-group"><label>#3</label><input type="text" id="add_2ccl3"></div>
+                        <div class="form-group"><label>#4</label><input type="text" id="add_2ccl4"></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>3CCL 잉크롤코드</h3>
+                    <div class="form-grid">
+                        <div class="form-group"><label>#1</label><input type="text" id="add_3ccl1"></div>
+                        <div class="form-group"><label>#2</label><input type="text" id="add_3ccl2"></div>
+                        <div class="form-group"><label>#3</label><input type="text" id="add_3ccl3"></div>
+                        <div class="form-group"><label>#4</label><input type="text" id="add_3ccl4"></div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>비고 (Remarks)</h3>
+                    <div class="form-group full"><textarea id="add_remarks" rows="2"></textarea></div>
+                </div>
+                <!-- Image Upload -->
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>디자인 사진 (여러 장 선택 가능)</label>
+                    <div class="file-upload-box" id="fileUploadBox">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>클릭하거나 파일을 여기로 끌어다 놓으세요</p>
+                        <input type="file" id="add_image" accept="image/*" multiple style="display: none;">
+                    </div>
+                    <div id="filePreview"
+                        style="display: none; margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                </div>
+                <button id="submitBtn" class="submit-btn">데이터 저장하기</button>
+            </form>
+        </div>
+    </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="main.js"></script>
+</body>
+
+</html>
