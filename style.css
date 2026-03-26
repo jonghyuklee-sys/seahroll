@@ -235,6 +235,20 @@ body {
     color: var(--primary);
 }
 
+.title-group {
+    display: flex;
+    align-items: baseline;
+    gap: 15px;
+}
+
+.loading-hint {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: -0.02em;
+}
+
 .stats {
     font-weight: 700;
     color: var(--text-secondary);
