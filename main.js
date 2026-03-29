@@ -1075,18 +1075,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. Prevent Common Shortcuts (PrintScreen, Ctrl+C, Ctrl+V, Ctrl+S, Ctrl+P, F12)
     document.addEventListener('keydown', (e) => {
-        // block Ctrl+C, Ctrl+V, Ctrl+S, Ctrl+P, Ctrl+U, F12
-        if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 's' || e.key === 'p' || e.key === 'u')) {
+        // block Ctrl/Cmd combinations
+        const isMod = e.ctrlKey || e.metaKey;
+        if (isMod && (e.key === 'c' || e.key === 'v' || e.key === 's' || e.key === 'p' || e.key === 'u')) {
             e.preventDefault();
         }
         if (e.key === 'F12') {
             e.preventDefault();
         }
         // block PrintScreen
-        if (e.key === 'PrintScreen') {
+        if (e.key === 'PrintScreen' || e.keyCode === 44) {
+            securityOverlay.style.display = 'flex'; // 즉시 가리기
             alert('보안 정책에 의해 화면 캡쳐가 제한됩니다.');
-            navigator.clipboard.writeText(''); // Clear clipboard (requires permission usually, but doesn't hurt)
+            navigator.clipboard.writeText('');
             e.preventDefault();
+        }
+        // Win + Shift + S 또는 Cmd + Shift + 4 등 대응 (Shift 인식 시 블러 준비)
+        if (e.shiftKey && (e.metaKey || e.ctrlKey)) {
+             securityOverlay.style.display = 'flex';
         }
     });
 
@@ -1095,13 +1101,32 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
     });
 
-    // 4. Extra: Hide content when switching windows (Help prevent some accidental captures/previews)
-    window.addEventListener('blur', () => {
+    // 4. Enhanced: Hide content using a dedicated overlay
+    const securityOverlay = document.createElement('div');
+    securityOverlay.id = 'securityOverlay';
+    securityOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(30px); z-index:10000; display:none; justify-content:center; align-items:center; color:#fff; font-weight:bold; font-size:1.5rem; flex-direction:column; gap:20px;';
+    securityOverlay.innerHTML = '<i class="fas fa-lock" style="font-size:3rem;"></i> <span>보안 정책에 따라 화면을 보호 중입니다.</span>';
+    document.body.appendChild(securityOverlay);
+
+    const protectScreen = () => {
         if (sessionStorage.getItem('seahAuth') === 'true') {
-            document.body.style.filter = 'blur(10px)';
+            securityOverlay.style.display = 'flex';
         }
-    });
-    window.addEventListener('focus', () => {
-        document.body.style.filter = 'none';
+    };
+    
+    const unprotectScreen = () => {
+        // 미세한 지연을 주어 캡쳐 도구 활성화 직후 포커스가 잠깐 돌아오는 상황을 대비
+        setTimeout(() => {
+            if (document.hasFocus() && !document.hidden) {
+                securityOverlay.style.display = 'none';
+            }
+        }, 500);
+    };
+
+    window.addEventListener('blur', protectScreen);
+    window.addEventListener('focus', unprotectScreen);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) protectScreen();
+        else unprotectScreen();
     });
 });
