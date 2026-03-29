@@ -27,7 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const authOverlay = document.getElementById('authOverlay');
     const authPassword = document.getElementById('authPassword');
     const authBtn = document.getElementById('authBtn');
-    const DEFAULT_PASS = "2026";
+    const DEFAULT_PASS = "2026"; // 조회용
+    const ADMIN_PASS = "0000";   // 관리자용 (디자인 추가/수정 가능)
 
     // Modal Elements
     const modal = document.getElementById('imageModal');
@@ -68,12 +69,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Authentication ---
     function checkAuth() {
-        if (authPassword.value === DEFAULT_PASS) {
+        const pass = authPassword.value;
+        if (pass === ADMIN_PASS) {
             sessionStorage.setItem('seahAuth', 'true');
+            sessionStorage.setItem('seahRole', 'admin');
             authOverlay.style.display = 'none';
-            if (typeof initializeDesigns === 'function') {
-                initializeDesigns();
-            }
+            applyRoleUI();
+            initializeDesigns();
+        } else if (pass === DEFAULT_PASS) {
+            sessionStorage.setItem('seahAuth', 'true');
+            sessionStorage.setItem('seahRole', 'user');
+            authOverlay.style.display = 'none';
+            applyRoleUI();
+            initializeDesigns();
         } else {
             alert('비밀번호가 올바르지 않습니다.');
             authPassword.value = '';
@@ -81,9 +89,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Role-based UI visibility
+    function applyRoleUI() {
+        const role = sessionStorage.getItem('seahRole');
+        const isAdmin = role === 'admin';
+        
+        if (addDesignBtn) {
+            addDesignBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+        }
+
+        const adminBadge = document.getElementById('adminBadge');
+        if (adminBadge) {
+            adminBadge.style.display = isAdmin ? 'flex' : 'none';
+        }
+        
+        // 상세 모달 내의 수정/삭제 버튼 제어
+        const actionButtons = document.querySelector('.action-buttons');
+        if (actionButtons) {
+            actionButtons.style.display = isAdmin ? 'flex' : 'none';
+        }
+    }
+
     // Init state check
     if (sessionStorage.getItem('seahAuth') === 'true') {
         authOverlay.style.display = 'none';
+        applyRoleUI();
         initializeDesigns();
     } else {
         authOverlay.style.display = 'flex';
@@ -769,6 +799,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (addDesignBtn) {
         addDesignBtn.onclick = () => {
+            const role = sessionStorage.getItem('seahRole');
+            if (role !== 'admin') {
+                alert('관리자 권한이 없습니다.');
+                return;
+            }
             selectedItem = null;
             addModalTitle.textContent = '신규 디자인 등록';
             addDesignForm.reset();
@@ -887,6 +922,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     submitBtn.onclick = async (e) => {
         e.preventDefault();
+        const role = sessionStorage.getItem('seahRole');
+        if (role !== 'admin') {
+            alert('관리자 권한이 없습니다.');
+            return;
+        }
         const colorCode = document.getElementById('add_colorCode').value;
         const description = document.getElementById('add_description').value;
         if (!colorCode) return alert('컬러코드는 필수 입력 사항입니다.');
@@ -954,6 +994,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     editBtn.onclick = () => {
+        const role = sessionStorage.getItem('seahRole');
+        if (role !== 'admin') {
+            alert('관리자 권한이 없습니다.');
+            return;
+        }
         if (!selectedItem) return;
         addModalTitle.textContent = '정보 수정';
         const fields = ['colorCode', 'description', '2ccl1', '2ccl2', '2ccl3', '2ccl4', '3ccl1', '3ccl2', '3ccl3', '3ccl4', 'remarks'];
@@ -973,6 +1018,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 삭제 버튼 클릭 시 처리
     deleteBtn.onclick = async () => {
+        const role = sessionStorage.getItem('seahRole');
+        if (role !== 'admin') {
+            alert('관리자 권한이 없습니다.');
+            return;
+        }
         if (!selectedItem || !selectedItem.id) return alert('삭제할 항목을 선택해주세요.');
         if (!confirm(`'${selectedItem.colorCode}' 디자인을 정말 삭제하시겠습니까?`)) return;
 
@@ -1012,6 +1062,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (sessionStorage.getItem('seahAuth') === 'true') {
         authOverlay.style.display = 'none';
+        applyRoleUI();
         initializeDesigns();
     }
+
+    // --- Capture & Copy Protection ---
+    // 1. Context Menu (Right-click) Disable
+    document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        return false;
+    });
+
+    // 2. Prevent Common Shortcuts (PrintScreen, Ctrl+C, Ctrl+V, Ctrl+S, Ctrl+P, F12)
+    document.addEventListener('keydown', (e) => {
+        // block Ctrl+C, Ctrl+V, Ctrl+S, Ctrl+P, Ctrl+U, F12
+        if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 's' || e.key === 'p' || e.key === 'u')) {
+            e.preventDefault();
+        }
+        if (e.key === 'F12') {
+            e.preventDefault();
+        }
+        // block PrintScreen
+        if (e.key === 'PrintScreen') {
+            alert('보안 정책에 의해 화면 캡쳐가 제한됩니다.');
+            navigator.clipboard.writeText(''); // Clear clipboard (requires permission usually, but doesn't hurt)
+            e.preventDefault();
+        }
+    });
+
+    // 3. Prevent Dragging
+    document.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+    });
+
+    // 4. Extra: Hide content when switching windows (Help prevent some accidental captures/previews)
+    window.addEventListener('blur', () => {
+        if (sessionStorage.getItem('seahAuth') === 'true') {
+            document.body.style.filter = 'blur(10px)';
+        }
+    });
+    window.addEventListener('focus', () => {
+        document.body.style.filter = 'none';
+    });
 });
