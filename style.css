@@ -85,16 +85,19 @@ img {
     justify-content: center;
     align-items: center;
     z-index: 20000;
+    overflow-y: auto; /* 키보드 대응 스크롤 허용 */
+    padding: 20px;
 }
 
 .auth-box {
     background: var(--bg-card);
-    padding: 3.5rem 3rem;
-    border-radius: 40px;
+    padding: 2.5rem 2rem; /* 여백 축소 */
+    border-radius: 30px;
     box-shadow: var(--shadow-sm);
     text-align: center;
-    width: 90%;
-    max-width: 480px;
+    width: 100%;
+    max-width: 400px;
+    margin: auto; /* 중앙 정렬 유지 보조 */
 }
 
 .auth-logo {
@@ -147,6 +150,7 @@ img {
     border: none;
     cursor: pointer;
     transition: all 0.3s;
+    touch-action: manipulation; /* 모바일 클릭 지연 방지 */
 }
 
 .auth-input-group button:hover {
