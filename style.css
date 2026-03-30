@@ -1189,6 +1189,54 @@ img {
         background: #000 !important;
         backdrop-filter: blur(50px) !important;
     }
+
+    /* 강력 보안 경고: 레드 실드 (모바일 전용) */
+    #securityOverlay.warning-mode {
+        background: #ff0000 !important; /* 강력한 경고 레드 */
+        color: #fff !important;
+        flex-direction: column;
+        gap: 30px;
+        text-align: center;
+        padding: 40px 20px;
+        font-family: 'Pretendard', sans-serif;
+        display: flex; /* 활성화 시 노출 */
+    }
+
+    .warning-icon {
+        font-size: 5rem;
+        margin-bottom: 20px;
+        animation: pulse-warning 1s infinite alternate;
+    }
+
+    @keyframes pulse-warning {
+        from { transform: scale(1); opacity: 1; }
+        to { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    .warning-msg {
+        font-size: 1.5rem;
+        font-weight: 800;
+        line-height: 1.4;
+        word-break: keep-all;
+    }
+
+    .warning-info {
+        background: rgba(0, 0, 0, 0.4);
+        padding: 20px;
+        border-radius: 15px;
+        font-size: 0.9rem;
+        margin-top: 20px;
+        line-height: 1.6;
+        text-align: left;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    /* 사이트 잠금 상태 (상호작용 불가) */
+    body.is-locked {
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
 }
 
 /* --- Admin Badge Styling --- */

@@ -1101,28 +1101,61 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
     });
 
-    // 4. Enhanced: Hide content using a dedicated overlay
+    // 4. Enhanced Security System (Shield & Alert)
     const securityOverlay = document.createElement('div');
     securityOverlay.id = 'securityOverlay';
-    // 배경을 검정색(#000)으로 설정하여 요청하신 '까만 화면' 반영
     securityOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#000; backdrop-filter:blur(50px); z-index:10000; display:none; justify-content:center; align-items:center; color:#fff; font-weight:bold; font-size:1.2rem; flex-direction:column; gap:20px; text-align:center; padding:20px;';
     securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라<br>화면 캡쳐가 차단되었습니다.</span>';
     document.body.appendChild(securityOverlay);
 
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    let lockTimer = null;
+
     const protectScreen = () => {
         if (sessionStorage.getItem('seahAuth') === 'true') {
+            if (isMobile) {
+                // 모바일 전용 강력 경고 모드
+                const now = new Date().toLocaleString();
+                const role = sessionStorage.getItem('seahRole') === 'admin' ? '운영진(ADMIN)' : '임직원(USER)';
+                securityOverlay.classList.add('warning-mode');
+                securityOverlay.innerHTML = `
+                    <div class="warning-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="warning-msg">보안 위반 경고!<br>무단 캡쳐 시도가 감지되었습니다.</div>
+                    <div class="warning-info">
+                        <strong>[기록 정보]</strong><br>
+                        • 접속 계정: ${role}<br>
+                        • 시도 시간: ${now}<br>
+                        • 경고 내용: 보안 정책 위반 시도<br><br>
+                        해당 시도는 서버에 기록되었으며,<br>무단 배포 시 법적 책임을 물을 수 있습니다.
+                    </div>
+                    <div style="margin-top:20px; font-size:0.8rem; opacity:0.7;">안전을 위해 15초간 사이트 이용이 잠금됩니다.</div>
+                `;
+                document.body.classList.add('is-locked');
+            }
             securityOverlay.style.display = 'flex';
-            document.body.style.filter = 'blur(40px)'; // 배경 블러 강화
+            document.body.style.filter = 'blur(40px)';
         }
     };
     
     const unprotectScreen = () => {
-        setTimeout(() => {
-            if (document.hasFocus()) {
+        if (isMobile && document.body.classList.contains('is-locked')) {
+            // 모바일은 바로 풀지 않고 15초 뒤에 해제
+            if (lockTimer) return;
+            lockTimer = setTimeout(() => {
                 securityOverlay.style.display = 'none';
+                securityOverlay.classList.remove('warning-mode');
                 document.body.style.filter = 'none';
-            }
-        }, 300);
+                document.body.classList.remove('is-locked');
+                lockTimer = null;
+            }, 15000); // 15초 잠금
+        } else {
+            setTimeout(() => {
+                if (document.hasFocus()) {
+                    securityOverlay.style.display = 'none';
+                    document.body.style.filter = 'none';
+                }
+            }, 300);
+        }
     };
 
     window.addEventListener('blur', protectScreen);
@@ -1133,7 +1166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 5. Mobile & Desktop Security (Capture Shield)
-    // Block multi-touch (e.g. 3-finger screenshot)
+    // Block multi-touch
     document.addEventListener('touchstart', (e) => {
         if (e.touches.length > 1) {
             protectScreen();
