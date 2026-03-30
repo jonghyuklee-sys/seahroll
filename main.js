@@ -412,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- UI Rendering ---
     function renderRolls(data) {
         filteredData = data;
+        rollGrid.classList.add('secure-mode'); // 보안 모드 상시 적용
         totalCount.textContent = filteredData.length;
 
         if (filteredData.length === 0) {
@@ -607,6 +608,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Detail View Logic ---
     function openDetail(item) {
         selectedItem = item;
+        // 상세 페이지 보안 모직(블러) 추가
+        modal.querySelector('.modal-content').classList.add('secure-mode');
+        
         currentImageIndex = 0;
         const images = item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
 
@@ -1104,23 +1108,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Enhanced: Hide content using a dedicated overlay
     const securityOverlay = document.createElement('div');
     securityOverlay.id = 'securityOverlay';
-    securityOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(30px); z-index:10000; display:none; justify-content:center; align-items:center; color:#fff; font-weight:bold; font-size:1.5rem; flex-direction:column; gap:20px;';
-    securityOverlay.innerHTML = '<i class="fas fa-lock" style="font-size:3rem;"></i> <span>보안 정책에 따라 화면을 보호 중입니다.</span>';
+    // 배경을 검정색(#000)으로 설정하여 요청하신 '까만 화면' 반영
+    securityOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#000; backdrop-filter:blur(50px); z-index:10000; display:none; justify-content:center; align-items:center; color:#fff; font-weight:bold; font-size:1.2rem; flex-direction:column; gap:20px; text-align:center; padding:20px;';
+    securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라<br>화면 캡쳐가 차단되었습니다.</span>';
     document.body.appendChild(securityOverlay);
 
     const protectScreen = () => {
         if (sessionStorage.getItem('seahAuth') === 'true') {
             securityOverlay.style.display = 'flex';
+            document.body.style.filter = 'blur(40px)'; // 배경 블러 강화
         }
     };
     
     const unprotectScreen = () => {
-        // 미세한 지연을 주어 캡쳐 도구 활성화 직후 포커스가 잠깐 돌아오는 상황을 대비
         setTimeout(() => {
-            if (document.hasFocus() && !document.hidden) {
+            if (document.hasFocus()) {
                 securityOverlay.style.display = 'none';
+                document.body.style.filter = 'none';
             }
-        }, 500);
+        }, 300);
     };
 
     window.addEventListener('blur', protectScreen);
@@ -1130,16 +1136,24 @@ document.addEventListener('DOMContentLoaded', () => {
         else unprotectScreen();
     });
 
-    // 5. Mobile Specific Protection
-    // Block multi-touch (e.g. 3-finger screenshot)
-    document.addEventListener('touchstart', (e) => {
-        if (e.touches.length > 1) {
-            protectScreen();
-            setTimeout(unprotectScreen, 2000);
-        }
-    }, { passive: false });
+    // 5. Mobile Specific: Hold to View Logic
+    const handleTouchStart = () => {
+        document.body.classList.add('is-touching');
+    };
+    const handleTouchEnd = () => {
+        document.body.classList.remove('is-touching');
+    };
 
-    // Block long-press context menu on images (Mobile)
+    // 모바일 전용 이벤트 리스너
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    
+    // 데스크탑에서도 클릭 유지 시 보이게 하려면 (선택 사항)
+    document.addEventListener('mousedown', handleTouchStart);
+    document.addEventListener('mouseup', handleTouchEnd);
+
+    // Block long-press context menu on images
     document.addEventListener('contextmenu', (e) => {
         if (e.target.tagName === 'IMG') e.preventDefault();
     });
