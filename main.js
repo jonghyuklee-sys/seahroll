@@ -1104,33 +1104,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Enhanced Security System (Shield & Alert)
     const securityOverlay = document.createElement('div');
     securityOverlay.id = 'securityOverlay';
-    securityOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#000; backdrop-filter:blur(50px); z-index:10000; display:none; justify-content:center; align-items:center; color:#fff; font-weight:bold; font-size:1.2rem; flex-direction:column; gap:20px; text-align:center; padding:20px;';
-    securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라<br>화면 캡쳐가 차단되었습니다.</span>';
+    securityOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:#000; backdrop-filter:blur(50px); z-index:10000; display:none; justify-content:center; align-items:center; color:#fff; font-weight:bold; font-size:1.1rem; flex-direction:column; gap:25px; text-align:center; padding:30px; font-family:sans-serif;';
     document.body.appendChild(securityOverlay);
 
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    let lockTimer = null;
+    const isMobileOrTablet = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 1024;
 
     const protectScreen = () => {
         if (sessionStorage.getItem('seahAuth') === 'true') {
-            if (isMobile) {
-                // 모바일 전용 강력 경고 모드
+            if (isMobileOrTablet) {
+                // 모바일/태블릿 전용 고강도 경고 모드
                 const now = new Date().toLocaleString();
-                const role = sessionStorage.getItem('seahRole') === 'admin' ? '운영진(ADMIN)' : '임직원(USER)';
-                securityOverlay.classList.add('warning-mode');
+                const sessionID = 'ID_' + Math.random().toString(36).substr(2, 9).toUpperCase();
                 securityOverlay.innerHTML = `
-                    <div class="warning-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                    <div class="warning-msg">보안 위반 경고!<br>무단 캡쳐 시도가 감지되었습니다.</div>
-                    <div class="warning-info">
-                        <strong>[기록 정보]</strong><br>
-                        • 접속 계정: ${role}<br>
-                        • 시도 시간: ${now}<br>
-                        • 경고 내용: 보안 정책 위반 시도<br><br>
-                        해당 시도는 서버에 기록되었으며,<br>무단 배포 시 법적 책임을 물을 수 있습니다.
+                    <div style="color:#ff4d4d; font-size:4rem; margin-bottom:10px;"><i class="fas fa-gavel"></i></div>
+                    <div style="font-size:1.6rem; color:#ff4d4d; font-weight:900; line-height:1.3; margin-bottom:10px;">
+                        [경고] 보안 위반 행위 감지
                     </div>
-                    <div style="margin-top:20px; font-size:0.8rem; opacity:0.7;">안전을 위해 15초간 사이트 이용이 잠금됩니다.</div>
+                    <div style="font-size:1.1rem; color:#f1f1f1; line-height:1.6; word-break:keep-all; margin-bottom:20px;">
+                        비정상적인 캡쳐 또는 화면 이탈 정황이 포착되었습니다.<br>
+                        귀하의 접속 기록 및 로그는 <strong>실시간으로 서버에 전송</strong>되고 있습니다.
+                    </div>
+                    <div style="background:rgba(255,255,255,0.1); padding:20px; border:1px solid rgba(255,255,255,0.2); border-radius:10px; text-align:left; font-size:0.85rem; color:#ccc; width:100%; max-width:350px;">
+                        <strong style="color:#fff;">[로그 추적 정보]</strong><br>
+                        • 로그 ID: ${sessionID}<br>
+                        • 접속 일시: ${now}<br>
+                        • 상태: 보안 정책 위반 의심(SEAH_SEC_002)
+                    </div>
+                    <div style="font-size:0.9rem; color:#ffbcbc; margin-top:20px; line-height:1.5;">
+                        무단 유출 및 캡쳐본 배포 시 <strong>저작권법 및 영업비밀보호법</strong>에 의거하여<br>
+                        강력한 민·형사상 조치 및 징계 절차를 취할 예정입니다.
+                    </div>
                 `;
-                document.body.classList.add('is-locked');
+            } else {
+                securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라 화면 캡쳐가 차단되었습니다.</span>';
             }
             securityOverlay.style.display = 'flex';
             document.body.style.filter = 'blur(40px)';
@@ -1138,24 +1144,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const unprotectScreen = () => {
-        if (isMobile && document.body.classList.contains('is-locked')) {
-            // 모바일은 바로 풀지 않고 15초 뒤에 해제
-            if (lockTimer) return;
-            lockTimer = setTimeout(() => {
+        setTimeout(() => {
+            if (document.hasFocus()) {
                 securityOverlay.style.display = 'none';
-                securityOverlay.classList.remove('warning-mode');
                 document.body.style.filter = 'none';
-                document.body.classList.remove('is-locked');
-                lockTimer = null;
-            }, 15000); // 15초 잠금
-        } else {
-            setTimeout(() => {
-                if (document.hasFocus()) {
-                    securityOverlay.style.display = 'none';
-                    document.body.style.filter = 'none';
-                }
-            }, 300);
-        }
+            }
+        }, 300);
     };
 
     window.addEventListener('blur', protectScreen);
