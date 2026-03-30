@@ -1123,21 +1123,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
     };
 
+    window.addEventListener('blur', protectScreen);
+    window.addEventListener('focus', unprotectScreen);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) protectScreen();
+        else unprotectScreen();
+    });
+
     // 5. Mobile Specific Protection
     // Block multi-touch (e.g. 3-finger screenshot)
     document.addEventListener('touchstart', (e) => {
         if (e.touches.length > 1) {
-            e.preventDefault();
-            securityOverlay.style.display = 'flex';
-            setTimeout(() => { securityOverlay.style.display = 'none'; }, 1000);
+            protectScreen();
+            setTimeout(unprotectScreen, 2000);
         }
     }, { passive: false });
 
     // Block long-press context menu on images (Mobile)
-    document.addEventListener('touchend', (e) => {
-        if (e.target.tagName === 'IMG') {
-            // e.preventDefault(); // This might block clicking, use contextmenu listener instead
-        }
+    document.addEventListener('contextmenu', (e) => {
+        if (e.target.tagName === 'IMG') e.preventDefault();
     });
 
     // 6. Print Prevention (Desktop)
