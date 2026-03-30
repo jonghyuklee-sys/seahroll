@@ -1111,35 +1111,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const protectScreen = () => {
         if (sessionStorage.getItem('seahAuth') === 'true') {
-            if (isMobileOrTablet) {
-                // 모바일/태블릿 전용 고강도 경고 모드
-                const now = new Date().toLocaleString();
-                const sessionID = 'ID_' + Math.random().toString(36).substr(2, 9).toUpperCase();
-                securityOverlay.innerHTML = `
-                    <div style="color:#ff4d4d; font-size:4rem; margin-bottom:10px;"><i class="fas fa-gavel"></i></div>
-                    <div style="font-size:1.6rem; color:#ff4d4d; font-weight:900; line-height:1.3; margin-bottom:10px;">
-                        [경고] 보안 위반 행위 감지
-                    </div>
-                    <div style="font-size:1.1rem; color:#f1f1f1; line-height:1.6; word-break:keep-all; margin-bottom:20px;">
-                        비정상적인 캡쳐 또는 화면 이탈 정황이 포착되었습니다.<br>
-                        귀하의 접속 기록 및 로그는 <strong>실시간으로 서버에 전송</strong>되고 있습니다.
-                    </div>
-                    <div style="background:rgba(255,255,255,0.1); padding:20px; border:1px solid rgba(255,255,255,0.2); border-radius:10px; text-align:left; font-size:0.85rem; color:#ccc; width:100%; max-width:350px;">
-                        <strong style="color:#fff;">[로그 추적 정보]</strong><br>
-                        • 로그 ID: ${sessionID}<br>
-                        • 접속 일시: ${now}<br>
-                        • 상태: 보안 정책 위반 의심(SEAH_SEC_002)
-                    </div>
-                    <div style="font-size:0.9rem; color:#ffbcbc; margin-top:20px; line-height:1.5;">
-                        무단 유출 및 캡쳐본 배포 시 <strong>저작권법 및 영업비밀보호법</strong>에 의거하여<br>
-                        강력한 민·형사상 조치 및 징계 절차를 취할 예정입니다.
-                    </div>
-                `;
-            } else {
-                securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라 화면 캡쳐가 차단되었습니다.</span>';
-            }
+            securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라 화면 캡쳐가 차단되었습니다.</span>';
             securityOverlay.style.display = 'flex';
-            document.body.style.filter = 'blur(40px)';
+            document.body.style.filter = 'blur(30px)';
         }
     };
     
@@ -1149,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 securityOverlay.style.display = 'none';
                 document.body.style.filter = 'none';
             }
-        }, 300);
+        }, 100); // 더 빠르게 복구
     };
 
     window.addEventListener('blur', protectScreen);

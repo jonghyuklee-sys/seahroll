@@ -1210,4 +1210,7 @@ img {
 
 [data-theme="dark"] .admin-badge {
     box-shadow: 0 2px 10px rgba(255, 65, 108, 0.5);
-}
+}
+/* --- Mobile Legal Warning Footer --- */
+.mobile-warning-footer { display: none; position: fixed; bottom: 0; width: 100%; background: rgba(0, 0, 0, 0.9); color: #ff9f8e; padding: 12px 10px; z-index: 9999; text-align: center; font-size: 0.75rem; font-weight: 800; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+@media (max-width: 1024px) { .mobile-warning-footer { display: block; } body { padding-bottom: 60px; } }
