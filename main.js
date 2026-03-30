@@ -89,11 +89,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // -------------------------------------------------------------------
+    // [보안/UI 최적화] 인증 전 푸터 숨김 및 스크롤 차단
+    const mobileFooter = document.getElementById('mobileWarningFooter');
+    if (mobileFooter) mobileFooter.style.display = 'none';
+    document.body.style.overflow = 'hidden';
+
     // Role-based UI visibility
     function applyRoleUI() {
         const role = sessionStorage.getItem('seahRole');
         const isAdmin = role === 'admin';
         
+        // 인증 성공 시 스크롤 허용 및 푸터 노출 여부 결정
+        document.body.style.overflow = '';
+        if (mobileFooter && (window.innerWidth <= 1024 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent))) {
+            mobileFooter.style.display = 'block';
+        }
+
         if (addDesignBtn) {
             addDesignBtn.style.display = isAdmin ? 'inline-flex' : 'none';
         }
