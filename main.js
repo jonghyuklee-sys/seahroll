@@ -89,19 +89,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // [보안/UI 최적화] 인증 전 푸터 숨김 및 스크롤 차단
+    // [보안/UI 최적화] 인증 전 푸터 완전 비활성화
     const mobileFooter = document.getElementById('mobileWarningFooter');
     if (mobileFooter) mobileFooter.classList.remove('active');
-    document.body.classList.remove('has-footer');
-    document.body.style.overflow = 'hidden';
 
     // Role-based UI visibility
     function applyRoleUI() {
         const role = sessionStorage.getItem('seahRole');
         const isAdmin = role === 'admin';
         
-        // 인증 성공 시 스크롤 허용 및 푸터 노출 여부 결정
-        document.body.style.overflow = '';
+        // 인증 성공 후 모바일일 때만 푸터 활성화
         if (mobileFooter && (window.innerWidth <= 1024 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent))) {
             mobileFooter.classList.add('active');
             document.body.classList.add('has-footer');
@@ -133,26 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
         authPassword.focus();
     }
 
-    // 버튼 클릭 이벤트 바인딩 (addEventListener 사용으로 변경)
-    if (authBtn) {
-        authBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            checkAuth();
-        });
-        // 모바일 터치 대응 강화
-        authBtn.addEventListener('touchend', (e) => {
-            if (authOverlay.style.display !== 'none') {
-                e.preventDefault();
-                checkAuth();
-            }
-        }, { passive: false });
-    }
-
-    if (authPassword) {
-        authPassword.addEventListener('keypress', (e) => { 
-            if (e.key === 'Enter') checkAuth(); 
-        });
-    }
+    // 가장 확실한 기본 클릭 이벤트만 응답
+    authBtn.onclick = checkAuth;
+    authPassword.onkeypress = (e) => { if (e.key === 'Enter') checkAuth(); };
 
     // --- Theme Control ---
     const savedTheme = localStorage.getItem('seahTheme') || 'light';
