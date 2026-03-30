@@ -138,6 +138,8 @@ img {
     text-align: center;
     color: var(--text-primary);
     transition: all 0.3s;
+    user-select: text !important; /* PWA 모드 입력 허용 */
+    -webkit-user-select: text !important;
 }
 
 .auth-input-group button {
