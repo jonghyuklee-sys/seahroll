@@ -45,11 +45,7 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     transition: background-color 0.3s, color 0.3s;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    -webkit-touch-callout: none; /* iOS 메뉴 방지 */
+    -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -138,8 +134,9 @@ img {
     text-align: center;
     color: var(--text-primary);
     transition: all 0.3s;
-    user-select: text !important; /* PWA 모드 입력 허용 */
+    user-select: text !important;
     -webkit-user-select: text !important;
+    pointer-events: auto !important; /* 포인터 이벤트 활성화 */
 }
 
 .auth-input-group button {
