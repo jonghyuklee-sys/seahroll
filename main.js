@@ -409,10 +409,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const paginationContainer = document.getElementById('pagination');
 
-    // --- UI Rendering ---
     function renderRolls(data) {
         filteredData = data;
-        rollGrid.classList.add('secure-mode'); // 보안 모드 상시 적용
         totalCount.textContent = filteredData.length;
 
         if (filteredData.length === 0) {
@@ -608,8 +606,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Detail View Logic ---
     function openDetail(item) {
         selectedItem = item;
-        // 상세 페이지 보안 모직(블러) 추가
-        modal.querySelector('.modal-content').classList.add('secure-mode');
         
         currentImageIndex = 0;
         const images = item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
@@ -1136,22 +1132,14 @@ document.addEventListener('DOMContentLoaded', () => {
         else unprotectScreen();
     });
 
-    // 5. Mobile Specific: Hold to View Logic
-    const handleTouchStart = () => {
-        document.body.classList.add('is-touching');
-    };
-    const handleTouchEnd = () => {
-        document.body.classList.remove('is-touching');
-    };
-
-    // 모바일 전용 이벤트 리스너
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.addEventListener('touchend', handleTouchEnd, { passive: true });
-    document.addEventListener('touchcancel', handleTouchEnd, { passive: true });
-    
-    // 데스크탑에서도 클릭 유지 시 보이게 하려면 (선택 사항)
-    document.addEventListener('mousedown', handleTouchStart);
-    document.addEventListener('mouseup', handleTouchEnd);
+    // 5. Mobile & Desktop Security (Capture Shield)
+    // Block multi-touch (e.g. 3-finger screenshot)
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1) {
+            protectScreen();
+            setTimeout(unprotectScreen, 2000);
+        }
+    }, { passive: false });
 
     // Block long-press context menu on images
     document.addEventListener('contextmenu', (e) => {
