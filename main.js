@@ -807,6 +807,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     closeModal.onclick = () => { modal.style.display = 'none'; document.body.style.overflow = ''; };
+    modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; document.body.style.overflow = ''; } };
+
 
     if (addDesignBtn) {
         addDesignBtn.onclick = () => {
@@ -903,6 +905,14 @@ document.addEventListener('DOMContentLoaded', () => {
             fileInput.value = ''; // 닫을 때 파일 선택 취소
             currentEditPhotos = [];
         };
+        addModal.onclick = (e) => {
+            if (e.target === addModal) {
+                addModal.style.display = 'none';
+                document.body.style.overflow = '';
+                fileInput.value = '';
+                currentEditPhotos = [];
+            }
+        };
     }
 
     // 🖼️ 브라우저에서 이미지 리사이징 (Canvas API)
@@ -995,6 +1005,8 @@ document.addEventListener('DOMContentLoaded', () => {
             fileInput.value = ''; // 파일 입력 초기화
             currentEditPhotos = [];
             addModal.style.display = 'none';
+            document.body.style.overflow = '';
+
         } catch (error) {
             console.error('Save error:', error);
             alert('저장 중 오류가 발생했습니다: ' + error.message);
