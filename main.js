@@ -872,6 +872,15 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModal.onclick = () => { modal.style.display = 'none'; document.body.style.overflow = ''; updateFooterVisibility(); };
     modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; document.body.style.overflow = ''; updateFooterVisibility(); } };
 
+    const closePanelBtn = document.getElementById('closePanelBtn');
+    if (closePanelBtn) {
+        closePanelBtn.onclick = () => {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+            updateFooterVisibility();
+        };
+    }
+
 
     if (addDesignBtn) {
         addDesignBtn.onclick = () => {

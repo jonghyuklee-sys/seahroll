@@ -1238,3 +1238,42 @@ img {
         padding-bottom: 70px !important; 
     } 
 }
+/* --- Panel Close Button --- */
+.panel-close-container {
+    padding: 10px 0;
+    margin-bottom: 5px;
+}
+.panel-close-btn {
+    width: 100%;
+    padding: 16px;
+    background: #475569; 
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.panel-close-btn:hover {
+    background: #1e293b;
+}
+
+@media (max-width: 768px) {
+    .close-modal {
+        top: 15px !important;
+        right: 15px !important;
+        width: 48px !important;
+        height: 48px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: rgba(0, 0, 0, 0.6) !important;
+        border-radius: 50% !important;
+        color: #fff !important;
+        font-size: 2rem !important;
+        z-index: 2500 !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+    }
+}
