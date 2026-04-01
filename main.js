@@ -136,6 +136,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 상세화면(모달) 오픈 여부 확인 함수
+    function isAnyModalOpen() {
+        const imageModal = document.getElementById('imageModal');
+        const addDesignModal = document.getElementById('addDesignModal');
+        const galleryModal = document.getElementById('galleryModal');
+        return (imageModal && imageModal.style.display === 'flex') || 
+               (addDesignModal && addDesignModal.style.display === 'flex') ||
+               (galleryModal && galleryModal.style.display === 'flex');
+    }
+
+    // 푸터 가시성 통합 제어 함수
+    function updateFooterVisibility() {
+        if (!mobileFooter) return;
+        if (isAnyModalOpen()) {
+            mobileFooter.classList.remove('active');
+            document.body.classList.remove('has-footer');
+        } else {
+            const isMobile = window.innerWidth <= 1024 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (sessionStorage.getItem('seahAuth') === 'true' && isMobile) {
+                mobileFooter.classList.add('active');
+                document.body.classList.add('has-footer');
+            }
+        }
+    }
+
     // Init state check
     if (sessionStorage.getItem('seahAuth') === 'true') {
         authOverlay.style.display = 'none';
@@ -315,8 +340,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const raw = design.rawColorCode || '';
             const coreF = extractCoreCode(raw);
 
-            // 1. Storage 캐시 확인 우선
-            let finalUrls = storageImageCache[coreF] || design._firestoreUrls || [];
+            // 1. Firestore에 이미 주소가 있다면 (인덱싱 완료된 상태) 최우선적으로 믿음
+            // (사용자가 삭제한 사진이 다시 나타나지 않도록 수정)
+            let finalUrls = (design._firestoreUrls && design._firestoreUrls.length > 0) 
+                             ? design._firestoreUrls 
+                             : (storageImageCache[coreF] || []);
 
             return {
                 ...design,
@@ -671,6 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        updateFooterVisibility(); // 푸터 숨기기
         magnifierLens.style.backgroundImage = `url('${currentUrl}')`;
     }
 
@@ -802,8 +831,9 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         gModal.style.display = 'flex';
-        gModal.querySelector('.close-gallery').onclick = () => { gModal.style.display = 'none'; };
-        gModal.onclick = (e) => { if (e.target === gModal) gModal.style.display = 'none'; };
+        updateFooterVisibility(); // 푸터 숨기기
+        gModal.querySelector('.close-gallery').onclick = () => { gModal.style.display = 'none'; updateFooterVisibility(); };
+        gModal.onclick = (e) => { if (e.target === gModal) { gModal.style.display = 'none'; updateFooterVisibility(); } };
     };
 
     window.showInMainModal = function (url) {
@@ -811,6 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
         magnifierLens.style.backgroundImage = `url('${url}')`;
         document.getElementById('galleryModal').style.display = 'none';
         modal.style.display = 'flex';
+        updateFooterVisibility();
     };
 
     // --- Global Event Listeners ---
@@ -838,8 +869,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     });
 
-    closeModal.onclick = () => { modal.style.display = 'none'; document.body.style.overflow = ''; };
-    modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; document.body.style.overflow = ''; } };
+    closeModal.onclick = () => { modal.style.display = 'none'; document.body.style.overflow = ''; updateFooterVisibility(); };
+    modal.onclick = (e) => { if (e.target === modal) { modal.style.display = 'none'; document.body.style.overflow = ''; updateFooterVisibility(); } };
 
 
     if (addDesignBtn) {
@@ -855,9 +886,11 @@ document.addEventListener('DOMContentLoaded', () => {
             filePreview.style.display = 'none';
             addModal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
-            filePreview.innerHTML = ''; // 기존 미리보기 초기화
-            currentEditPhotos = [];
-            fileInput.value = '';
+                updateFooterVisibility(); // 푸터 숨기기
+                filePreview.innerHTML = ''; // 기존 미리보기 초기화
+                currentEditPhotos = [];
+                removedPhotos = []; // 초기화
+                fileInput.value = '';
         };
     }
 
@@ -867,6 +900,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let currentEditPhotos = []; // 수정 중인 사진 목록을 담는 변수
+    let removedPhotos = []; // 실제로 삭제할 사진 목록 (스토리지 삭제용)
 
     function renderEditPhotos() {
         filePreview.innerHTML = '';
@@ -890,6 +924,12 @@ document.addEventListener('DOMContentLoaded', () => {
             delBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                
+                const url = currentEditPhotos[index];
+                if (url && url.startsWith('http')) {
+                    removedPhotos.push(url); // Firebase URL인 경우 삭제 목록에 추가
+                }
+                
                 currentEditPhotos.splice(index, 1);
                 renderEditPhotos();
             };
@@ -934,6 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
         closeAddModal.onclick = () => {
             addModal.style.display = 'none';
             document.body.style.overflow = '';
+            updateFooterVisibility();
             fileInput.value = ''; // 닫을 때 파일 선택 취소
             currentEditPhotos = [];
         };
@@ -941,6 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === addModal) {
                 addModal.style.display = 'none';
                 document.body.style.overflow = '';
+                updateFooterVisibility();
                 fileInput.value = '';
                 currentEditPhotos = [];
             }
@@ -1003,6 +1045,18 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
+            // [추가] 물리적 파일 삭제 처리 (기존 스토리지에 있던 사진)
+            if (removedPhotos && removedPhotos.length > 0) {
+                const deletePromises = removedPhotos.map(async (url) => {
+                    try {
+                        const ref = storage.refFromURL(url);
+                        await ref.delete();
+                        console.log('File deleted from storage:', url);
+                    } catch (e) { console.warn('Failed to delete file from storage:', e); }
+                });
+                await Promise.all(deletePromises);
+            }
+
             const files = Array.from(fileInput.files); // Use fileInput from the original context
             let urls = [];
 
@@ -1034,10 +1088,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             alert('성공적으로 저장되었습니다!');
+            // 캐시 강제 갱신
+            const coreF = extractCoreCode(colorCode);
+            delete storageImageCache[coreF];
+
             fileInput.value = ''; // 파일 입력 초기화
             currentEditPhotos = [];
+            removedPhotos = [];
             addModal.style.display = 'none';
             document.body.style.overflow = '';
+            updateFooterVisibility();
 
         } catch (error) {
             console.error('Save error:', error);
@@ -1065,10 +1125,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 기존 사진들 불러오기
         currentEditPhotos = selectedItem.imageUrls ? [...selectedItem.imageUrls] : (selectedItem.imageUrl ? [selectedItem.imageUrl] : []);
+        removedPhotos = []; // 수정 시작 시 삭제 목록 초기화
         renderEditPhotos();
 
         modal.style.display = 'none';
         addModal.style.display = 'flex';
+        updateFooterVisibility();
     };
 
     // 삭제 버튼 클릭 시 처리
@@ -1095,6 +1157,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             modal.style.display = 'none';
             document.body.style.overflow = '';
+            updateFooterVisibility();
             selectedItem = null;
 
             // 필터 및 렌더링 호출
@@ -1112,6 +1175,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') {
             [modal, addModal, document.getElementById('galleryModal')].forEach(m => { if (m) m.style.display = 'none'; });
             document.body.style.overflow = '';
+            updateFooterVisibility();
         }
     });
 
@@ -1140,6 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // block PrintScreen
         if (e.key === 'PrintScreen' || e.keyCode === 44) {
+            if (isAnyModalOpen()) return; // 상세화면(모달)에서는 허용
             securityOverlay.style.display = 'flex'; // 즉시 가리기
             alert('보안 정책에 의해 화면 캡쳐가 제한됩니다.');
             navigator.clipboard.writeText('');
@@ -1147,7 +1212,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Win + Shift + S 또는 Cmd + Shift + 4 등 대응 (Shift 인식 시 블러 준비)
         if (e.shiftKey && (e.metaKey || e.ctrlKey)) {
-             securityOverlay.style.display = 'flex';
+             if (!isAnyModalOpen()) securityOverlay.style.display = 'flex';
         }
     });
 
@@ -1165,7 +1230,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isMobileOrTablet = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 1024;
 
     const protectScreen = () => {
-        if (sessionStorage.getItem('seahAuth') === 'true') {
+        if (sessionStorage.getItem('seahAuth') === 'true' && !isAnyModalOpen()) {
             securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라 화면 캡쳐가 차단되었습니다.</span>';
             securityOverlay.style.display = 'flex';
             document.body.style.filter = 'blur(30px)';
@@ -1204,6 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. Print Prevention (Desktop)
     window.addEventListener('beforeprint', () => {
+        if (isAnyModalOpen()) return; // 상세화면(모달)에서는 허용
         document.body.style.display = 'none';
         alert('보안상 출력이 제한됩니다.');
     });
