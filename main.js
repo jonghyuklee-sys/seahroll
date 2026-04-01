@@ -4,10 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let firebaseDesigns = [];
     let currentEditingId = null;
     let selectedItem = null;
-    let currentFilter = 'all';
-    let currentSort = 'code_asc';
+    let currentFilter = sessionStorage.getItem('seahFilter') || 'all';
+    let currentSort = sessionStorage.getItem('seahSort') || 'code_asc';
     let favorites = JSON.parse(localStorage.getItem('seahFavorites') || '[]');
-    let currentPage = 1;
+    let currentPage = parseInt(sessionStorage.getItem('seahPage') || '1');
     let filteredData = [];
     const itemsPerPage = 9;
     let currentImageIndex = 0; // 상세보기 갤러리 인덱스
@@ -22,6 +22,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('themeToggle');
     const sortSelect = document.getElementById('sortSelect');
     const filterBtns = document.querySelectorAll('.filter-btn');
+
+    // UI 상태 복원
+    if (searchInput) searchInput.value = sessionStorage.getItem('seahSearch') || '';
+    if (sortSelect) sortSelect.value = currentSort;
+    filterBtns.forEach(btn => {
+        const filterId = btn.id.replace('filter', '').toLowerCase();
+        btn.classList.toggle('active', filterId === currentFilter);
+    });
+
+    // 상태 저장 함수
+    function saveAppState() {
+        sessionStorage.setItem('seahFilter', currentFilter);
+        sessionStorage.setItem('seahSort', currentSort);
+        sessionStorage.setItem('seahPage', currentPage);
+        sessionStorage.setItem('seahSearch', searchInput.value);
+    }
 
     // Auth Elements
     const authOverlay = document.getElementById('authOverlay');
@@ -415,6 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resetPage) {
             currentPage = 1;
         }
+        saveAppState();
         renderRolls(filtered);
     }
 
@@ -516,7 +533,11 @@ document.addEventListener('DOMContentLoaded', () => {
         prevBtn.className = 'pagination-btn';
         prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
         prevBtn.disabled = currentPage === 1;
-        prevBtn.onclick = () => { currentPage--; renderRolls(filteredData); };
+        prevBtn.onclick = () => { 
+            currentPage--; 
+            saveAppState();
+            renderRolls(filteredData); 
+        };
         paginationContainer.appendChild(prevBtn);
 
         // Page Numbers (Smart display)
@@ -553,7 +574,11 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.className = 'pagination-btn';
         nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
         nextBtn.disabled = currentPage === totalPages;
-        nextBtn.onclick = () => { currentPage++; renderRolls(filteredData); };
+        nextBtn.onclick = () => { 
+            currentPage++; 
+            saveAppState();
+            renderRolls(filteredData); 
+        };
         paginationContainer.appendChild(nextBtn);
     }
 
@@ -561,7 +586,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.createElement('button');
         btn.className = `pagination-btn ${currentPage === page ? 'active' : ''}`;
         btn.textContent = page;
-        btn.onclick = () => { currentPage = page; renderRolls(filteredData); };
+        btn.onclick = () => { 
+            currentPage = page; 
+            saveAppState();
+            renderRolls(filteredData); 
+        };
         return btn;
     }
 
@@ -787,12 +816,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Global Event Listeners ---
     searchInput.oninput = () => {
         currentPage = 1;
+        saveAppState();
         applyFiltersAndSort();
     };
 
     sortSelect.onchange = (e) => {
         currentSort = e.target.value;
         currentPage = 1;
+        saveAppState();
         applyFiltersAndSort();
     };
 
@@ -802,6 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             currentFilter = btn.id.replace('filter', '').toLowerCase();
             currentPage = 1;
+            saveAppState();
             applyFiltersAndSort();
         };
     });
