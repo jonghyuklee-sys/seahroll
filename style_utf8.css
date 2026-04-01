@@ -1,4 +1,4 @@
-/* --- Global Reset & Variables --- */
+﻿/* --- Global Reset & Variables --- */
 :root {
     --primary: #004b93;
     --primary-light: #e6f0f9;
@@ -1240,34 +1240,6 @@ img {
 }
 @media (max-width: 768px) {
     .close-modal {
-    position: absolute;
-    bottom: 20px !important; /* 우측 하단으로 고정 */
-    right: 25px !important;
-    top: auto !important;
-    width: 60px !important;
-    height: 60px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: rgba(0, 0, 0, 0.7) !important;
-    backdrop-filter: blur(8px) !important;
-    border-radius: 50% !important;
-    color: #fff !important;
-    font-size: 2.2rem !important;
-    cursor: pointer !important;
-    z-index: 2200 !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
-    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    left: auto !important;
-}
-
-.close-modal:hover {
-    background: rgba(0, 0, 0, 0.9) !important;
-    transform: scale(1.1) translateY(-3px) !important;
-}
-
-/* 아래는 기존 중복 로직 방지용 더미 */
-.dummy-ignore {
         bottom: 15px !important;
         right: 15px !important;
         width: 50px !important;
