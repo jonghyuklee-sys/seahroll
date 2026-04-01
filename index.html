@@ -24,8 +24,18 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#004b93">
     <link rel="manifest" href="manifest.json">
-    
     <link rel="stylesheet" href="style.css">
+    <!-- 인증 상태 조기 확인 및 깜빡임 방지 스크립트 -->
+    <script>
+        (function() {
+            if (sessionStorage.getItem('seahAuth') === 'true') {
+                document.documentElement.classList.add('is-authenticated');
+            }
+        })();
+    </script>
+    <style>
+        .is-authenticated #authOverlay { display: none !important; }
+    </style>
 </head>
 
 <body>
@@ -229,7 +239,6 @@
                 <button id="submitBtn" class="submit-btn">데이터 저장하기</button>
             </form>
         </div>
-    </div>
     </div>
 
     <!-- Scripts -->
