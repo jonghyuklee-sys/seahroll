@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authOverlay = document.getElementById('authOverlay');
     const authPassword = document.getElementById('authPassword');
     const authBtn = document.getElementById('authBtn');
-    const DEFAULT_PASS = "2026"; // 조회용
+    const DEFAULT_PASS = "2017"; // 조회용
     const ADMIN_PASS = "2718";   // 관리자용 (디자인 추가/수정 가능)
 
     // Modal Elements
