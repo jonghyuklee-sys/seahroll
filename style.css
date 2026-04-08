@@ -186,21 +186,22 @@ img {
 }
 
 .logo-text {
+    gap: 4px;
     display: flex;
     flex-direction: column;
     justify-content: center;
 }
 
 .logo-text h1 {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 800;
     color: var(--primary);
-    line-height: 1.1;
+    line-height: 1.2;
     margin: 0;
 }
 
 .logo-text span {
-    font-size: 0.6rem;
+    font-size: 0.72rem;
     color: var(--text-muted);
     font-weight: 600;
     text-transform: uppercase;
@@ -258,7 +259,7 @@ img {
 }
 
 .controls-top h2 {
-    font-size: 1.8rem;
+    font-size: 1.2rem;
     font-weight: 900;
     color: var(--primary);
 }
@@ -1056,12 +1057,12 @@ img {
     }
 
     .logo-text h1 {
-        font-size: 0.95rem;
+        font-size: 1.14rem;
         word-break: keep-all;
     }
     
     .logo-text span {
-        font-size: 0.55rem;
+        font-size: 0.64rem;
     }
 
     .right-actions {
@@ -1091,7 +1092,7 @@ img {
     }
 
     .title-group h2 {
-        font-size: 1.5rem;
+        font-size: 1.0rem;
         display: block;
         width: 100%;
     }
