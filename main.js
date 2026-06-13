@@ -47,14 +47,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // 접속 허용 도메인 (세아 그룹 워크스페이스 계정)
     const ALLOWED_DOMAIN = "seah.co.kr";
 
-    // 관리자(디자인 추가/수정/삭제 가능) 이메일 목록 — 여기에 한 줄씩 추가하면 됩니다.
-    const ADMIN_EMAILS = [
-        "jonghyuk.lee@seah.co.kr"
-    ];
+    // 관리자(디자인 추가/수정/삭제) 권한을 주는 소속 팀.
+    // 로그인 시 구글 워크스페이스에서 자동으로 읽어온 부서명이 아래에 해당하면 관리자입니다.
+    // (부서명이 "품질경영팀(씨엠)" 처럼 접미사가 붙어 있어도 포함 여부로 인식)
+    const ADMIN_TEAMS = ["품질경영팀", "기술개발실"];
 
-    // 우측 상단 카드에 표시할 팀명·직급 프로필 (이메일 → 정보)
-    // 구글 계정에는 팀/직급 정보가 없으므로 여기에 등록한 정보로 표시합니다.
-    // 등록되지 않은 사용자는 구글 계정 이름/사진/이메일만 표시됩니다.
+    // (선택) 팀과 무관하게 항상 관리자로 둘 이메일 — 보통 비워둡니다.
+    const ADMIN_EMAILS = [];
+
+    // (예비) 수동 프로필 — 워크스페이스 자동 조회(People API)가 비어 있을 때만 사용됩니다.
+    // 평소에는 비워둬도 되며, 자동 인식이 안 되는 특정 인원만 여기에 보완 등록하세요.
     const USER_PROFILES = {
         "jonghyuk.lee@seah.co.kr": { name: "이종혁", team: "품질경영팀", position: "대리" }
     };
@@ -100,16 +102,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Authentication (Google Workspace SSO) ---
     let designsInitialized = false; // 데이터 중복 로딩 방지
+    let pendingAccessToken = null;  // 로그인 직후 People API 호출용 액세스 토큰
+    // 워크스페이스 조직(부서/직급) 정보를 읽기 위한 범위
+    const ORG_SCOPE = 'https://www.googleapis.com/auth/user.organization.read';
 
     // 구글 로그인 실행
     function signInWithGoogle() {
         const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope(ORG_SCOPE); // 부서/직급 자동 인식용
         // 세아 워크스페이스 계정 선택 유도
         provider.setCustomParameters({
             hd: ALLOWED_DOMAIN,
             prompt: 'select_account'
         });
-        firebaseAuth.signInWithPopup(provider).catch((error) => {
+        firebaseAuth.signInWithPopup(provider).then((result) => {
+            // 워크스페이스 조직정보 조회를 위한 액세스 토큰 보관
+            if (result.credential && result.credential.accessToken) {
+                pendingAccessToken = result.credential.accessToken;
+            }
+            // 이후 처리는 onAuthStateChanged 가 담당
+        }).catch((error) => {
             console.error('로그인 실패:', error);
             if (error.code === 'auth/popup-blocked') {
                 // 팝업이 차단되면 리디렉션 방식으로 재시도
@@ -119,6 +131,100 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('로그인 중 오류가 발생했습니다. 다시 시도해 주세요.');
             }
         });
+    }
+
+    // People API 로 본인 부서(department)·직급(title) 조회
+    async function fetchOrgFromPeopleAPI(token) {
+        const res = await fetch(
+            'https://people.googleapis.com/v1/people/me?personFields=organizations',
+            { headers: { Authorization: 'Bearer ' + token } }
+        );
+        if (!res.ok) throw new Error('People API 응답 오류: ' + res.status);
+        const data = await res.json();
+        const orgs = data.organizations || [];
+        // 대표(primary) 조직 우선, 없으면 첫 번째
+        const org = orgs.find(o => o.metadata && o.metadata.primary) || orgs[0];
+        if (!org) return null;
+        return { team: org.department || '', position: org.title || '' };
+    }
+
+    // 부서명에서 관리자 팀 여부 판정 ("품질경영팀(씨엠)" 처럼 접미사가 있어도 인식)
+    function isAdminTeamName(team) {
+        if (!team) return false;
+        const t = team.replace(/\s/g, '');
+        return ADMIN_TEAMS.some(adminTeam => t.includes(adminTeam));
+    }
+
+    // 표시용 부서명 정리: 괄호 안 회사구분 제거 ("품질경영팀(씨엠)" → "품질경영팀")
+    function cleanTeamName(team) {
+        return (team || '').replace(/\s*\([^)]*\)\s*/g, '').trim();
+    }
+
+    // 로그인한 사용자의 프로필(이름/팀/직급/사진) 확정
+    // 우선순위: (로그인 직후) People API → 캐시(localStorage/Firestore) → 수동 명단 → 구글 기본정보
+    async function resolveProfile(user) {
+        const email = (user.email || '').toLowerCase();
+        const profile = {
+            name: user.displayName || email.split('@')[0],
+            team: '',
+            position: '',
+            photo: user.photoURL || ''
+        };
+
+        const cacheKey = 'seahProfile:' + user.uid;
+
+        if (pendingAccessToken) {
+            // 방금 로그인함 → People API 로 부서/직급 조회 후 캐시에 저장
+            try {
+                const org = await fetchOrgFromPeopleAPI(pendingAccessToken);
+                if (org) {
+                    profile.team = org.team || '';
+                    profile.position = org.position || '';
+                }
+            } catch (e) {
+                console.warn('조직정보 조회 실패(설정 전이거나 권한 없음):', e.message);
+            }
+            pendingAccessToken = null;
+
+            if (profile.team || profile.position) {
+                const cacheVal = { team: profile.team, position: profile.position };
+                try { localStorage.setItem(cacheKey, JSON.stringify(cacheVal)); } catch (e) {}
+                // 다른 기기에서도 유지되도록 Firestore 에도 저장(실패해도 무방)
+                try {
+                    await db.collection('userProfiles').doc(user.uid).set({
+                        email, name: profile.name, team: profile.team,
+                        position: profile.position, photo: profile.photo,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                } catch (e) { console.warn('프로필 저장 실패:', e.message); }
+            }
+        } else {
+            // 새로고침 등(토큰 없음) → 캐시에서 복원
+            try {
+                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+                if (cached) { profile.team = cached.team || ''; profile.position = cached.position || ''; }
+            } catch (e) {}
+            if (!profile.team) {
+                try {
+                    const doc = await db.collection('userProfiles').doc(user.uid).get();
+                    if (doc.exists) {
+                        const d = doc.data();
+                        profile.team = d.team || profile.team;
+                        profile.position = d.position || profile.position;
+                    }
+                } catch (e) { console.warn('프로필 조회 실패:', e.message); }
+            }
+        }
+
+        // 수동 명단(USER_PROFILES) 보완 — 자동 조회가 비어있을 때만
+        const manual = USER_PROFILES[email];
+        if (manual) {
+            if (!profile.team && manual.team) profile.team = manual.team;
+            if (!profile.position && manual.position) profile.position = manual.position;
+            if (manual.name) profile.name = manual.name;
+        }
+
+        return profile;
     }
 
     // 로그아웃
@@ -139,11 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 로그인된 사용자 정보로 우측 상단 카드 채우기
-    function renderUserProfile(user) {
+    function renderUserProfile(user, profile) {
+        profile = profile || {};
         const email = (user.email || '').toLowerCase();
-        const profile = USER_PROFILES[email] || {};
         const displayName = profile.name || user.displayName || email.split('@')[0];
-        const team = profile.team || '';
+        const team = cleanTeamName(profile.team || '');
         const position = profile.position || '';
         const company = '세아씨엠';
         // 사진: 프로필 표 우선, 없으면 구글 사진, 그래도 없으면 기본 아바타
@@ -178,21 +284,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 인증 성공 처리
-    function onAuthorized(user) {
+    async function onAuthorized(user) {
         const email = (user.email || '').toLowerCase();
-        const role = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email) ? 'admin' : 'user';
-        sessionStorage.setItem('seahAuth', 'true');
-        sessionStorage.setItem('seahRole', role);
         document.documentElement.classList.add('is-authenticated');
         if (authOverlay) authOverlay.style.display = 'none';
 
-        renderUserProfile(user);
-        applyRoleUI();
-
+        // 데이터 로딩은 권한 확정과 무관하게 바로 시작(체감 속도 개선)
         if (!designsInitialized) {
             designsInitialized = true;
             initializeDesigns();
         }
+
+        // 워크스페이스에서 부서/직급 확정 후 권한 판단 및 카드 표시
+        const profile = await resolveProfile(user);
+        // 관리자 판단: 부서가 ADMIN_TEAMS(품질경영팀/기술개발실)에 해당하거나 ADMIN_EMAILS 에 명시된 경우
+        const isAdminEmail = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+        const role = (isAdminTeamName(profile.team) || isAdminEmail) ? 'admin' : 'user';
+        sessionStorage.setItem('seahAuth', 'true');
+        sessionStorage.setItem('seahRole', role);
+
+        renderUserProfile(user, profile);
+        applyRoleUI();
     }
 
     // 인증 상태 감지
