@@ -102,26 +102,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Authentication (Google Workspace SSO) ---
     let designsInitialized = false; // 데이터 중복 로딩 방지
-    let pendingAccessToken = null;  // 로그인 직후 People API 호출용 액세스 토큰
-    // 워크스페이스 조직(부서/직급) 정보를 읽기 위한 범위
-    const ORG_SCOPE = 'https://www.googleapis.com/auth/user.organization.read';
 
     // 구글 로그인 실행
     function signInWithGoogle() {
         const provider = new firebase.auth.GoogleAuthProvider();
-        provider.addScope(ORG_SCOPE); // 부서/직급 자동 인식용
         // 세아 워크스페이스 계정 선택 유도
         provider.setCustomParameters({
             hd: ALLOWED_DOMAIN,
             prompt: 'select_account'
         });
-        firebaseAuth.signInWithPopup(provider).then((result) => {
-            // 워크스페이스 조직정보 조회를 위한 액세스 토큰 보관
-            if (result.credential && result.credential.accessToken) {
-                pendingAccessToken = result.credential.accessToken;
-            }
-            // 이후 처리는 onAuthStateChanged 가 담당
-        }).catch((error) => {
+        firebaseAuth.signInWithPopup(provider).catch((error) => {
             console.error('로그인 실패:', error);
             if (error.code === 'auth/popup-blocked') {
                 // 팝업이 차단되면 리디렉션 방식으로 재시도
@@ -131,21 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('로그인 중 오류가 발생했습니다. 다시 시도해 주세요.');
             }
         });
-    }
-
-    // People API 로 본인 부서(department)·직급(title) 조회
-    async function fetchOrgFromPeopleAPI(token) {
-        const res = await fetch(
-            'https://people.googleapis.com/v1/people/me?personFields=organizations',
-            { headers: { Authorization: 'Bearer ' + token } }
-        );
-        if (!res.ok) throw new Error('People API 응답 오류: ' + res.status);
-        const data = await res.json();
-        const orgs = data.organizations || [];
-        // 대표(primary) 조직 우선, 없으면 첫 번째
-        const org = orgs.find(o => o.metadata && o.metadata.primary) || orgs[0];
-        if (!org) return null;
-        return { team: org.department || '', position: org.title || '' };
     }
 
     // 부서명에서 관리자 팀 여부 판정 ("품질경영팀(씨엠)" 처럼 접미사가 있어도 인식)
@@ -160,71 +135,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return (team || '').replace(/\s*\([^)]*\)\s*/g, '').trim();
     }
 
-    // 로그인한 사용자의 프로필(이름/팀/직급/사진) 확정
-    // 우선순위: (로그인 직후) People API → 캐시(localStorage/Firestore) → 수동 명단 → 구글 기본정보
-    async function resolveProfile(user) {
+    // 로그인한 사용자의 프로필(이름/팀/직급/사진) — 수동 명단(USER_PROFILES) + 구글 기본정보
+    function getProfile(user) {
         const email = (user.email || '').toLowerCase();
-        const profile = {
-            name: user.displayName || email.split('@')[0],
-            team: '',
-            position: '',
+        const manual = USER_PROFILES[email] || {};
+        return {
+            name: manual.name || user.displayName || email.split('@')[0],
+            team: manual.team || '',
+            position: manual.position || '',
             photo: user.photoURL || ''
         };
-
-        const cacheKey = 'seahProfile:' + user.uid;
-
-        if (pendingAccessToken) {
-            // 방금 로그인함 → People API 로 부서/직급 조회 후 캐시에 저장
-            try {
-                const org = await fetchOrgFromPeopleAPI(pendingAccessToken);
-                if (org) {
-                    profile.team = org.team || '';
-                    profile.position = org.position || '';
-                }
-            } catch (e) {
-                console.warn('조직정보 조회 실패(설정 전이거나 권한 없음):', e.message);
-            }
-            pendingAccessToken = null;
-
-            if (profile.team || profile.position) {
-                const cacheVal = { team: profile.team, position: profile.position };
-                try { localStorage.setItem(cacheKey, JSON.stringify(cacheVal)); } catch (e) {}
-                // 다른 기기에서도 유지되도록 Firestore 에도 저장(실패해도 무방)
-                try {
-                    await db.collection('userProfiles').doc(user.uid).set({
-                        email, name: profile.name, team: profile.team,
-                        position: profile.position, photo: profile.photo,
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                } catch (e) { console.warn('프로필 저장 실패:', e.message); }
-            }
-        } else {
-            // 새로고침 등(토큰 없음) → 캐시에서 복원
-            try {
-                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-                if (cached) { profile.team = cached.team || ''; profile.position = cached.position || ''; }
-            } catch (e) {}
-            if (!profile.team) {
-                try {
-                    const doc = await db.collection('userProfiles').doc(user.uid).get();
-                    if (doc.exists) {
-                        const d = doc.data();
-                        profile.team = d.team || profile.team;
-                        profile.position = d.position || profile.position;
-                    }
-                } catch (e) { console.warn('프로필 조회 실패:', e.message); }
-            }
-        }
-
-        // 수동 명단(USER_PROFILES) 보완 — 자동 조회가 비어있을 때만
-        const manual = USER_PROFILES[email];
-        if (manual) {
-            if (!profile.team && manual.team) profile.team = manual.team;
-            if (!profile.position && manual.position) profile.position = manual.position;
-            if (manual.name) profile.name = manual.name;
-        }
-
-        return profile;
     }
 
     // 로그아웃
@@ -284,20 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 인증 성공 처리
-    async function onAuthorized(user) {
+    function onAuthorized(user) {
         const email = (user.email || '').toLowerCase();
         document.documentElement.classList.add('is-authenticated');
         if (authOverlay) authOverlay.style.display = 'none';
 
-        // 데이터 로딩은 권한 확정과 무관하게 바로 시작(체감 속도 개선)
-        if (!designsInitialized) {
-            designsInitialized = true;
-            initializeDesigns();
-        }
-
-        // 워크스페이스에서 부서/직급 확정 후 권한 판단 및 카드 표시
-        const profile = await resolveProfile(user);
-        // 관리자 판단: 부서가 ADMIN_TEAMS(품질경영팀/기술개발실)에 해당하거나 ADMIN_EMAILS 에 명시된 경우
+        // 프로필(수동 명단 + 구글 기본정보) 확정 → 권한 판단
+        const profile = getProfile(user);
+        // 관리자 판단: 명단의 부서가 ADMIN_TEAMS(품질경영팀/기술개발실)에 해당하거나 ADMIN_EMAILS 에 명시된 경우
         const isAdminEmail = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
         const role = (isAdminTeamName(profile.team) || isAdminEmail) ? 'admin' : 'user';
         sessionStorage.setItem('seahAuth', 'true');
@@ -305,6 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderUserProfile(user, profile);
         applyRoleUI();
+
+        if (!designsInitialized) {
+            designsInitialized = true;
+            initializeDesigns();
+        }
     }
 
     // 인증 상태 감지
