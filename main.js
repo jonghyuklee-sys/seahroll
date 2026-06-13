@@ -47,12 +47,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // 접속 허용 도메인 (세아 그룹 워크스페이스 계정)
     const ALLOWED_DOMAIN = "seah.co.kr";
 
-    // 관리자(디자인 추가/수정/삭제) 권한을 주는 소속 팀.
-    // 로그인 시 구글 워크스페이스에서 자동으로 읽어온 부서명이 아래에 해당하면 관리자입니다.
-    // (부서명이 "품질경영팀(씨엠)" 처럼 접미사가 붙어 있어도 포함 여부로 인식)
-    const ADMIN_TEAMS = ["품질경영팀", "기술개발실"];
+    // ★ 관리자(디자인 추가/수정/삭제) 권한 — 구글 계정 "이름"이 아래 명단과 같으면 관리자.
+    //   (주의: 동명이인이 있으면 그 사람도 관리자가 됩니다. 정확히 하려면 ADMIN_EMAILS 사용을 권장)
+    const ADMIN_NAMES = ["이종혁", "김상순", "김채린", "최정규", "정부선", "황의범", "유진상"];
 
-    // (선택) 팀과 무관하게 항상 관리자로 둘 이메일 — 보통 비워둡니다.
+    // (선택) 소속 팀으로도 관리자 부여 — 사용하지 않으려면 빈 배열 [] 로 두세요.
+    const ADMIN_TEAMS = [];
+
+    // (선택) 이메일로 항상 관리자 부여 — 이름 대신 이메일로 확실히 지정하고 싶을 때 사용.
     const ADMIN_EMAILS = [];
 
     // (예비) 수동 프로필 — 워크스페이스 자동 조회(People API)가 비어 있을 때만 사용됩니다.
@@ -121,6 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('로그인 중 오류가 발생했습니다. 다시 시도해 주세요.');
             }
         });
+    }
+
+    // 이름 정규화(공백·괄호 제거) 후 관리자 명단과 일치 여부 판정
+    function isAdminName(name) {
+        if (!name) return false;
+        const norm = (s) => s.replace(/\s+/g, '').replace(/\([^)]*\)/g, '').trim();
+        const target = norm(name);
+        return ADMIN_NAMES.some(n => norm(n) === target);
     }
 
     // 부서명에서 관리자 팀 여부 판정 ("품질경영팀(씨엠)" 처럼 접미사가 있어도 인식)
@@ -211,9 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 프로필(수동 명단 + 구글 기본정보) 확정 → 권한 판단
         const profile = getProfile(user);
-        // 관리자 판단: 명단의 부서가 ADMIN_TEAMS(품질경영팀/기술개발실)에 해당하거나 ADMIN_EMAILS 에 명시된 경우
+        // 관리자 판단: 이름이 ADMIN_NAMES 와 일치하거나, 팀/이메일이 명단에 해당하는 경우
         const isAdminEmail = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
-        const role = (isAdminTeamName(profile.team) || isAdminEmail) ? 'admin' : 'user';
+        const role = (isAdminName(profile.name) || isAdminTeamName(profile.team) || isAdminEmail)
+            ? 'admin' : 'user';
         sessionStorage.setItem('seahAuth', 'true');
         sessionStorage.setItem('seahRole', role);
 
