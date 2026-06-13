@@ -41,10 +41,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auth Elements
     const authOverlay = document.getElementById('authOverlay');
-    const authPassword = document.getElementById('authPassword');
-    const authBtn = document.getElementById('authBtn');
-    const DEFAULT_PASS = "2017"; // 조회용
-    const ADMIN_PASS = "2718";   // 관리자용 (디자인 추가/수정 가능)
+    const googleLoginBtn = document.getElementById('googleLoginBtn');
+
+    // ===== 로그인 정책 설정 =====
+    // 접속 허용 도메인 (세아 그룹 워크스페이스 계정)
+    const ALLOWED_DOMAIN = "seah.co.kr";
+
+    // 관리자(디자인 추가/수정/삭제 가능) 이메일 목록 — 여기에 한 줄씩 추가하면 됩니다.
+    const ADMIN_EMAILS = [
+        "jonghyuk.lee@seah.co.kr"
+    ];
+
+    // 우측 상단 카드에 표시할 팀명·직급 프로필 (이메일 → 정보)
+    // 구글 계정에는 팀/직급 정보가 없으므로 여기에 등록한 정보로 표시합니다.
+    // 등록되지 않은 사용자는 구글 계정 이름/사진/이메일만 표시됩니다.
+    const USER_PROFILES = {
+        "jonghyuk.lee@seah.co.kr": { name: "이종혁", team: "품질경영팀", position: "대리" }
+    };
+
+    const firebaseAuth = firebase.auth();
 
     // Modal Elements
     const modal = document.getElementById('imageModal');
@@ -83,27 +98,118 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.getElementById('submitBtn');
     const addModalTitle = addModal ? addModal.querySelector('h2') : null;
 
-    // --- Authentication ---
-    function checkAuth() {
-        const pass = authPassword.value;
-        if (pass === ADMIN_PASS) {
-            sessionStorage.setItem('seahAuth', 'true');
-            sessionStorage.setItem('seahRole', 'admin');
-            authOverlay.style.display = 'none';
-            applyRoleUI();
+    // --- Authentication (Google Workspace SSO) ---
+    let designsInitialized = false; // 데이터 중복 로딩 방지
+
+    // 구글 로그인 실행
+    function signInWithGoogle() {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        // 세아 워크스페이스 계정 선택 유도
+        provider.setCustomParameters({
+            hd: ALLOWED_DOMAIN,
+            prompt: 'select_account'
+        });
+        firebaseAuth.signInWithPopup(provider).catch((error) => {
+            console.error('로그인 실패:', error);
+            if (error.code === 'auth/popup-blocked') {
+                // 팝업이 차단되면 리디렉션 방식으로 재시도
+                firebaseAuth.signInWithRedirect(provider);
+            } else if (error.code !== 'auth/popup-closed-by-user' &&
+                       error.code !== 'auth/cancelled-popup-request') {
+                alert('로그인 중 오류가 발생했습니다. 다시 시도해 주세요.');
+            }
+        });
+    }
+
+    // 로그아웃
+    function signOut() {
+        sessionStorage.removeItem('seahAuth');
+        sessionStorage.removeItem('seahRole');
+        firebaseAuth.signOut().then(() => {
+            window.location.reload();
+        });
+    }
+
+    // 로그인 화면 표시
+    function showAuthOverlay() {
+        document.documentElement.classList.remove('is-authenticated');
+        if (authOverlay) authOverlay.style.display = 'flex';
+        const userProfile = document.getElementById('userProfile');
+        if (userProfile) userProfile.style.display = 'none';
+    }
+
+    // 로그인된 사용자 정보로 우측 상단 카드 채우기
+    function renderUserProfile(user) {
+        const email = (user.email || '').toLowerCase();
+        const profile = USER_PROFILES[email] || {};
+        const displayName = profile.name || user.displayName || email.split('@')[0];
+        const team = profile.team || '';
+        const position = profile.position || '';
+        const company = '세아씨엠';
+        // 사진: 프로필 표 우선, 없으면 구글 사진, 그래도 없으면 기본 아바타
+        const photo = user.photoURL ||
+            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="120" height="120" fill="%23334155"/><text x="50%25" y="54%25" font-size="52" fill="%2394a3b8" text-anchor="middle" dominant-baseline="middle" font-family="sans-serif">' +
+            encodeURIComponent(displayName.charAt(0)) + '</text></svg>';
+
+        // 헤더 칩
+        const chipName = document.getElementById('chipName');
+        const chipTeam = document.getElementById('chipTeam');
+        const chipAvatar = document.getElementById('chipAvatar');
+        if (chipName) chipName.textContent = position ? `${displayName} ${position}` : displayName;
+        if (chipTeam) chipTeam.textContent = team ? `${company} ${team}` : company;
+        if (chipAvatar) chipAvatar.src = photo;
+
+        // 드롭다운 카드
+        const ddAvatar = document.getElementById('ddAvatar');
+        const ddName = document.getElementById('ddName');
+        const ddRole = document.getElementById('ddRole');
+        const ddEmail = document.getElementById('ddEmail');
+        if (ddAvatar) ddAvatar.src = photo;
+        if (ddName) ddName.textContent = team ? `${displayName} / ${team}` : displayName;
+        if (ddRole) {
+            const parts = [company];
+            if (team) parts.push(team);
+            ddRole.textContent = position ? `${parts.join(' ')} · ${position}` : parts.join(' ');
+        }
+        if (ddEmail) ddEmail.textContent = user.email || '';
+
+        const userProfile = document.getElementById('userProfile');
+        if (userProfile) userProfile.style.display = 'block';
+    }
+
+    // 인증 성공 처리
+    function onAuthorized(user) {
+        const email = (user.email || '').toLowerCase();
+        const role = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email) ? 'admin' : 'user';
+        sessionStorage.setItem('seahAuth', 'true');
+        sessionStorage.setItem('seahRole', role);
+        document.documentElement.classList.add('is-authenticated');
+        if (authOverlay) authOverlay.style.display = 'none';
+
+        renderUserProfile(user);
+        applyRoleUI();
+
+        if (!designsInitialized) {
+            designsInitialized = true;
             initializeDesigns();
-        } else if (pass === DEFAULT_PASS) {
-            sessionStorage.setItem('seahAuth', 'true');
-            sessionStorage.setItem('seahRole', 'user');
-            authOverlay.style.display = 'none';
-            applyRoleUI();
-            initializeDesigns();
-        } else {
-            alert('비밀번호가 올바르지 않습니다.');
-            authPassword.value = '';
-            authPassword.focus();
         }
     }
+
+    // 인증 상태 감지
+    firebaseAuth.onAuthStateChanged((user) => {
+        if (!user) {
+            showAuthOverlay();
+            return;
+        }
+        const email = (user.email || '').toLowerCase();
+        // 세아 임직원(@seah.co.kr) 계정만 허용
+        if (email.endsWith('@' + ALLOWED_DOMAIN)) {
+            onAuthorized(user);
+        } else {
+            alert('세아씨엠 임직원(@' + ALLOWED_DOMAIN + ') 계정만 접속할 수 있습니다.');
+            firebaseAuth.signOut().then(showAuthOverlay);
+        }
+    });
 
     // [보안/UI 최적화] 인증 전 푸터 완전 비활성화
     const mobileFooter = document.getElementById('mobileWarningFooter');
@@ -161,19 +267,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Init state check
-    if (sessionStorage.getItem('seahAuth') === 'true') {
-        authOverlay.style.display = 'none';
-        applyRoleUI();
-        initializeDesigns();
-    } else {
-        authOverlay.style.display = 'flex';
-        authPassword.focus();
-    }
+    // 로그인 버튼 이벤트 (인증 상태는 onAuthStateChanged 가 처리)
+    if (googleLoginBtn) googleLoginBtn.onclick = signInWithGoogle;
 
-    // 가장 확실한 기본 클릭 이벤트만 응답
-    authBtn.onclick = checkAuth;
-    authPassword.onkeypress = (e) => { if (e.key === 'Enter') checkAuth(); };
+    // 로그아웃 버튼
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.onclick = signOut;
+
+    // 프로필 칩 클릭 → 드롭다운 토글
+    const userChip = document.getElementById('userChip');
+    const userDropdown = document.getElementById('userDropdown');
+    if (userChip && userDropdown) {
+        userChip.onclick = (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('active');
+        };
+        // 바깥 클릭 시 닫기
+        document.addEventListener('click', (e) => {
+            if (!userDropdown.contains(e.target) && !userChip.contains(e.target)) {
+                userDropdown.classList.remove('active');
+            }
+        });
+    }
 
     // --- Theme Control ---
     const savedTheme = localStorage.getItem('seahTheme') || 'light';
@@ -400,9 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 초기화 실행
-    initializeDesigns();
-
+    // 초기화는 로그인 성공(onAuthorized) 후에만 실행됩니다.
 
     function applyFiltersAndSort(resetPage = true) {
         let filtered = [...allDesigns];
@@ -464,12 +577,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const paginationContainer = document.getElementById('pagination');
+    let lastRenderSignature = null; // 직전 렌더링 내용 비교용 (깜빡임 방지)
 
     function renderRolls(data) {
         filteredData = data;
         totalCount.textContent = filteredData.length;
 
         if (filteredData.length === 0) {
+            lastRenderSignature = 'empty';
             rollGrid.innerHTML = '<div class="loading">검색 결과가 없습니다.</div>';
             paginationContainer.innerHTML = '';
             return;
@@ -488,6 +603,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (codesToScan.length > 0) {
             loadStorageImages(codesToScan);
         }
+
+        // ⚡ [깜빡임 방지] 화면에 보이는 내용(페이지/필터/검색/항목/사진/즐겨찾기)이
+        // 직전과 동일하면 DOM을 다시 그리지 않는다 → 이미지 요소가 유지되어 깜빡임이 사라짐.
+        // (초기 로딩 중 백그라운드 스캔이 수십 번 재렌더를 호출해도 실제 변화가 없으면 무시)
+        const signature = [
+            currentPage,
+            currentFilter,
+            searchInput.value.trim(),
+            filteredData.length
+        ].join('|') + '#' + pageItems.map(item => {
+            const fav = favorites.includes(item.colorCode) ? '1' : '0';
+            const imgs = (item.imageUrls || []).join('~');
+            return `${item.id}:${imgs}:${fav}`;
+        }).join(',');
+
+        if (signature === lastRenderSignature) {
+            return; // 변경 없음 → 기존 카드/이미지 유지
+        }
+        lastRenderSignature = signature;
 
         rollGrid.innerHTML = '';
         pageItems.forEach(item => {
@@ -1188,11 +1322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    if (sessionStorage.getItem('seahAuth') === 'true') {
-        authOverlay.style.display = 'none';
-        applyRoleUI();
-        initializeDesigns();
-    }
+    // 인증/초기화는 firebaseAuth.onAuthStateChanged 에서 단일 처리합니다.
 
     // --- Capture & Copy Protection ---
     // 1. Context Menu (Right-click) Disable
