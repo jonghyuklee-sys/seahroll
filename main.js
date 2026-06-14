@@ -65,6 +65,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const firebaseAuth = firebase.auth();
 
+    // [인증 유지] 브라우저/앱을 닫았다 다시 열어도 로그인 상태가 유지되도록
+    // 영구(LOCAL) 지속성으로 명시 고정한다. (기기에 인증 토큰 보관)
+    firebaseAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .catch((e) => console.warn('인증 지속성 설정 실패(기본값 사용):', e));
+
     // Modal Elements
     const modal = document.getElementById('imageModal');
     const closeModal = document.querySelector('.close-modal');
@@ -159,8 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 로그아웃
     function signOut() {
-        sessionStorage.removeItem('seahAuth');
-        sessionStorage.removeItem('seahRole');
+        localStorage.removeItem('seahAuth');
+        localStorage.removeItem('seahRole');
         firebaseAuth.signOut().then(() => {
             window.location.reload();
         });
@@ -225,8 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isAdminEmail = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
         const role = (isAdminName(profile.name) || isAdminTeamName(profile.team) || isAdminEmail)
             ? 'admin' : 'user';
-        sessionStorage.setItem('seahAuth', 'true');
-        sessionStorage.setItem('seahRole', role);
+        localStorage.setItem('seahAuth', 'true');
+        localStorage.setItem('seahRole', role);
 
         renderUserProfile(user, profile);
         applyRoleUI();
@@ -259,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Role-based UI visibility
     function applyRoleUI() {
-        const role = sessionStorage.getItem('seahRole');
+        const role = localStorage.getItem('seahRole');
         const isAdmin = role === 'admin';
         
         // 인증 성공 후 모바일일 때만 푸터 활성화
@@ -302,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.remove('has-footer');
         } else {
             const isMobile = window.innerWidth <= 1024 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            if (sessionStorage.getItem('seahAuth') === 'true' && isMobile) {
+            if (localStorage.getItem('seahAuth') === 'true' && isMobile) {
                 mobileFooter.classList.add('active');
                 document.body.classList.add('has-footer');
             }
@@ -1060,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (addDesignBtn) {
         addDesignBtn.onclick = () => {
-            const role = sessionStorage.getItem('seahRole');
+            const role = localStorage.getItem('seahRole');
             if (role !== 'admin') {
                 alert('관리자 권한이 없습니다.');
                 return;
@@ -1202,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     submitBtn.onclick = async (e) => {
         e.preventDefault();
-        const role = sessionStorage.getItem('seahRole');
+        const role = localStorage.getItem('seahRole');
         if (role !== 'admin') {
             alert('관리자 권한이 없습니다.');
             return;
@@ -1294,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     editBtn.onclick = () => {
-        const role = sessionStorage.getItem('seahRole');
+        const role = localStorage.getItem('seahRole');
         if (role !== 'admin') {
             alert('관리자 권한이 없습니다.');
             return;
@@ -1320,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 삭제 버튼 클릭 시 처리
     deleteBtn.onclick = async () => {
-        const role = sessionStorage.getItem('seahRole');
+        const role = localStorage.getItem('seahRole');
         if (role !== 'admin') {
             alert('관리자 권한이 없습니다.');
             return;
@@ -1411,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isMobileOrTablet = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 1024;
 
     const protectScreen = () => {
-        if (sessionStorage.getItem('seahAuth') === 'true' && !isAnyModalOpen()) {
+        if (localStorage.getItem('seahAuth') === 'true' && !isAnyModalOpen()) {
             securityOverlay.innerHTML = '<i class="fas fa-eye-slash" style="font-size:3rem; color: #ff4d4d;"></i> <span>보안 정책에 따라 화면 캡쳐가 차단되었습니다.</span>';
             securityOverlay.style.display = 'flex';
             document.body.style.filter = 'blur(30px)';

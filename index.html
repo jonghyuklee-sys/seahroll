@@ -28,7 +28,7 @@
     <!-- 인증 상태 조기 확인 및 깜빡임 방지 스크립트 -->
     <script>
         (function() {
-            if (sessionStorage.getItem('seahAuth') === 'true') {
+            if (localStorage.getItem('seahAuth') === 'true') {
                 document.documentElement.classList.add('is-authenticated');
             }
         })();
