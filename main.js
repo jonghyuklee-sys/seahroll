@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Action buttons
     const editBtn = document.getElementById('editBtn');
     const deleteBtn = document.getElementById('deleteBtn');
+    const downloadImageBtn = document.getElementById('downloadImageBtn');
 
     // Add Modal Elements
     const addDesignBtn = document.getElementById('addDesignBtn');
@@ -882,6 +883,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) el.textContent = item[key] || '-';
         }
 
+        // 사진이 있을 때만 다운로드 버튼 표시
+        if (downloadImageBtn) {
+            downloadImageBtn.style.display = images.length > 0 ? 'inline-flex' : 'none';
+        }
+
         // 갤러리 네비게이션 UI 구성
         setupGalleryNav(images);
 
@@ -1304,6 +1310,49 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.textContent = '데이터 저장하기';
         }
     };
+
+    // 현재 보고 있는 사진 다운로드
+    if (downloadImageBtn) {
+        downloadImageBtn.onclick = async () => {
+            const url = modalImage.src;
+            if (!selectedItem || !url) {
+                alert('다운로드할 사진이 없습니다.');
+                return;
+            }
+
+            // 파일명 구성: 컬러코드_번호.확장자
+            const safeCode = (selectedItem.colorCode || 'design').replace(/[\\/:*?"<>|]/g, '_');
+            let ext = 'jpg';
+            const m = url.split('?')[0].match(/\.(jpe?g|png|webp|gif|bmp)$/i);
+            if (m) ext = m[1].toLowerCase();
+            const fileName = `${safeCode}_${currentImageIndex + 1}.${ext}`;
+
+            const original = downloadImageBtn.innerHTML;
+            downloadImageBtn.disabled = true;
+            downloadImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 다운로드 중...';
+
+            try {
+                const res = await fetch(url, { mode: 'cors' });
+                if (!res.ok) throw new Error('fetch failed');
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(blobUrl);
+            } catch (err) {
+                console.error('이미지 다운로드 실패:', err);
+                // CORS 등으로 직접 다운로드가 막힌 경우 새 탭에서 열기
+                window.open(url, '_blank');
+            } finally {
+                downloadImageBtn.disabled = false;
+                downloadImageBtn.innerHTML = original;
+            }
+        };
+    }
 
     editBtn.onclick = () => {
         const role = localStorage.getItem('seahRole');
