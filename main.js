@@ -1329,7 +1329,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const original = downloadImageBtn.innerHTML;
             downloadImageBtn.disabled = true;
-            downloadImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 다운로드 중...';
+            downloadImageBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
             try {
                 const res = await fetch(url, { mode: 'cors' });
