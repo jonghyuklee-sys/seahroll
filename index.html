@@ -166,9 +166,6 @@
             <div id="magnifierArea" class="image-viewer">
                 <img id="modalImage" src="" alt="Design Image">
                 <div id="magnifierLens" class="magnifier-lens"></div>
-                <button type="button" id="downloadImageBtn" class="download-img-btn" title="사진 다운로드" aria-label="사진 다운로드">
-                    <i class="fas fa-download"></i>
-                </button>
             </div>
             <div class="info-panel">
                 <!-- 닫기 버튼을 정보창 우측 상단으로 이동 -->
@@ -215,7 +212,12 @@
                     <h3>비고</h3>
                     <div id="vRemarks" class="remarks-box"></div>
                 </div>
-                
+
+                <div class="info-section" id="downloadSection" style="display: none;">
+                    <h3>사진 다운로드</h3>
+                    <div id="downloadButtons" class="download-buttons"></div>
+                </div>
+
                 <div class="action-buttons">
                     <button class="edit-btn" id="editBtn"><i class="fas fa-edit"></i> 수정</button>
                     <button class="delete-btn" id="deleteBtn"><i class="fas fa-trash"></i> 삭제</button>
