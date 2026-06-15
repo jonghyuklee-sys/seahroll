@@ -130,12 +130,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 이름 정규화(공백·괄호 제거) 후 관리자 명단과 일치 여부 판정
+    // 이름 정규화(공백·괄호 제거) 후 관리자 명단과 매칭 여부 판정
+    //  - 정확히 일치하거나, 표시 이름 안에 관리자 이름이 "포함"되면 관리자로 인정.
+    //    (예: 구글 표시 이름이 "정부선 책임", "정부선/품질경영팀" 이어도 "정부선" 으로 인식)
+    //  - 이메일·수동 등록 없이도, 로그인 표시 이름만으로 자동 부여됨.
     function isAdminName(name) {
         if (!name) return false;
-        const norm = (s) => s.replace(/\s+/g, '').replace(/\([^)]*\)/g, '').trim();
+        const norm = (s) => (s || '').replace(/\s+/g, '').replace(/\([^)]*\)/g, '').trim();
         const target = norm(name);
-        return ADMIN_NAMES.some(n => norm(n) === target);
+        if (!target) return false;
+        return ADMIN_NAMES.some(n => {
+            const adminName = norm(n);
+            return adminName && (target === adminName || target.includes(adminName));
+        });
     }
 
     // 부서명에서 관리자 팀 여부 판정 ("품질경영팀(씨엠)" 처럼 접미사가 있어도 인식)
